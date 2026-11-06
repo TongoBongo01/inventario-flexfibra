@@ -1,0 +1,76 @@
+rules_version = '2';
+
+// Regras de segurança do Cloud Firestore.
+// Elas rodam no servidor do Google: mesmo que alguém chame o banco por fora
+// do aplicativo, estas regras continuam valendo.
+//
+// Para aplicar: console do Firebase > Firestore Database > aba Regras,
+// colar este conteúdo e publicar.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function autenticado() {
+      return request.auth != null;
+    }
+
+    // Lê o perfil (admin ou tecnico) no documento do próprio usuário
+    function perfil() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.perfil;
+    }
+
+    function ehAdmin() {
+      return autenticado() && perfil() == 'admin';
+    }
+
+    function ehTecnico() {
+      return autenticado() && perfil() == 'tecnico';
+    }
+
+    // ---------- USUÁRIOS ----------
+    match /usuarios/{uid} {
+      // Cada um lê o próprio cadastro; o administrador lê todos
+      allow read: if autenticado() && (request.auth.uid == uid || ehAdmin());
+
+      // Cadastro público: a pessoa só cria o próprio documento e sempre como técnico.
+      // O administrador pode criar qualquer usuário.
+      allow create: if (autenticado()
+                        && request.auth.uid == uid
+                        && request.resource.data.perfil == 'tecnico')
+                       || ehAdmin();
+
+      allow update, delete: if ehAdmin();
+    }
+
+    // ---------- ITENS DO ESTOQUE ----------
+    match /itens/{id} {
+      // Qualquer usuário logado consulta o estoque
+      allow read: if autenticado();
+      // Só o administrador cadastra, edita ou exclui itens
+      allow write: if ehAdmin();
+    }
+
+    // ---------- REQUISIÇÕES ----------
+    match /requisicoes/{id} {
+      // O técnico vê apenas as suas; o administrador vê todas
+      allow read: if ehAdmin() || (autenticado() && resource.data.tecnicoId == request.auth.uid);
+
+      // O técnico só cria requisição em nome dele e sempre como pendente
+      allow create: if ehTecnico()
+                    && request.resource.data.tecnicoId == request.auth.uid
+                    && request.resource.data.status == 'pendente'
+                    && request.resource.data.quantidade is int
+                    && request.resource.data.quantidade > 0;
+
+      // O administrador responde (aprova ou nega);
+      // o técnico só pode cancelar uma requisição pendente que seja dele
+      allow update: if ehAdmin()
+                    || (autenticado()
+                        && resource.data.tecnicoId == request.auth.uid
+                        && resource.data.status == 'pendente'
+                        && request.resource.data.status == 'cancelada');
+
+      // Histórico não se apaga
+      allow delete: if ehAdmin();
+    }
+  }
+}

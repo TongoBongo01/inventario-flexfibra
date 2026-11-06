@@ -28,7 +28,6 @@ import PerfilScreen from './src/screens/PerfilScreen';
 
 import { CORES } from './src/theme/cores';
 import { PERFIS } from './src/data/constantes';
-import { inicializarBanco } from './src/services/bancoInicial';
 import { obterUsuarioLogado } from './src/services/authService';
 
 const Stack = createNativeStackNavigator();
@@ -88,9 +87,8 @@ export default function App() {
 
   const prepararApp = async () => {
     try {
-      await inicializarBanco();
-
-      // Se o usuário não saiu da conta, já abre direto na área dele (Módulo 10)
+      // Se o usuário não saiu da conta, o Firebase restaura a sessão salva
+      // no aparelho e o app já abre direto na área dele
       const usuario = await obterUsuarioLogado();
       if (!usuario) {
         setRotaInicial('Login');

@@ -1,31 +1,38 @@
-// Prepara o "banco de dados" local na primeira vez que o app é aberto.
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CHAVES, lerLista, salvarLista } from './armazenamento';
-import { exigirPerfil, gerarHashSenha } from './authService';
+// Carga dos dados de demonstração no Firestore.
+//
+// Os usuários NÃO são criados aqui: contas do Firebase Authentication são criadas
+// pelo cadastro do aplicativo ou pelo script scripts/semear.mjs, executado uma vez.
+import { collection, getDocs, writeBatch, doc } from 'firebase/firestore';
+import { db } from './firebaseConfig';
+import { exigirPerfil, traduzirErro } from './authService';
 import { PERFIS } from '../data/constantes';
-import { USUARIOS_INICIAIS, ITENS_INICIAIS, criarRequisicoesIniciais } from '../data/dadosIniciais';
+import { ITENS_INICIAIS } from '../data/dadosIniciais';
 
-export async function inicializarBanco() {
-  const usuarios = await lerLista(CHAVES.usuarios);
-  if (usuarios.length > 0) return; // Já foi preparado antes
+// Apaga uma coleção inteira em lotes (o Firestore não apaga coleções de uma vez)
+async function limparColecao(nome) {
+  const consulta = await getDocs(collection(db, nome));
+  if (consulta.empty) return;
 
-  // Troca a senha de cada usuário de exemplo pelo hash dela
-  const usuariosComHash = await Promise.all(
-    USUARIOS_INICIAIS.map(async ({ senha, ...usuario }) => ({
-      ...usuario,
-      senhaHash: await gerarHashSenha(usuario.email, senha),
-      criadoEm: new Date().toISOString(),
-    }))
-  );
-
-  await salvarLista(CHAVES.usuarios, usuariosComHash);
-  await salvarLista(CHAVES.itens, ITENS_INICIAIS);
-  await salvarLista(CHAVES.requisicoes, criarRequisicoesIniciais());
+  const lote = writeBatch(db);
+  consulta.docs.forEach((documento) => lote.delete(documento.ref));
+  await lote.commit();
 }
 
-// Apaga tudo e volta para os dados de exemplo (útil para apresentar o trabalho)
+// Apaga itens e requisições e grava novamente a lista de exemplo.
+// Útil para deixar o aplicativo no estado inicial antes de uma apresentação.
 export async function restaurarDadosDeExemplo() {
   await exigirPerfil(PERFIS.ADMIN);
-  await AsyncStorage.multiRemove(Object.values(CHAVES));
-  await inicializarBanco();
+
+  try {
+    await limparColecao('requisicoes');
+    await limparColecao('itens');
+
+    const lote = writeBatch(db);
+    ITENS_INICIAIS.forEach((item) => {
+      lote.set(doc(collection(db, 'itens')), item);
+    });
+    await lote.commit();
+  } catch (erro) {
+    throw new Error(traduzirErro(erro));
+  }
 }

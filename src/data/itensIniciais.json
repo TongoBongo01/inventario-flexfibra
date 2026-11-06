@@ -1,0 +1,16 @@
+[
+  { "nome": "ONU GPON Wi-Fi", "categoria": "Equipamentos", "unidade": "un", "quantidade": 25, "estoqueMinimo": 5 },
+  { "nome": "Roteador Wi-Fi 6", "categoria": "Equipamentos", "unidade": "un", "quantidade": 4, "estoqueMinimo": 5 },
+  { "nome": "Cabo Drop Flat 1FO", "categoria": "Cabos", "unidade": "m", "quantidade": 2000, "estoqueMinimo": 300 },
+  { "nome": "Cabo de Rede CAT6", "categoria": "Cabos", "unidade": "m", "quantidade": 500, "estoqueMinimo": 100 },
+  { "nome": "Patch Cord SC/APC 1,5m", "categoria": "Cabos", "unidade": "un", "quantidade": 60, "estoqueMinimo": 10 },
+  { "nome": "Conector Rápido SC/APC", "categoria": "Conectores", "unidade": "un", "quantidade": 280, "estoqueMinimo": 50 },
+  { "nome": "Conector RJ45 CAT6", "categoria": "Conectores", "unidade": "un", "quantidade": 200, "estoqueMinimo": 50 },
+  { "nome": "Splitter Óptico 1x8", "categoria": "Acessórios", "unidade": "un", "quantidade": 15, "estoqueMinimo": 5 },
+  { "nome": "Caixa de Terminação Óptica (CTO)", "categoria": "Acessórios", "unidade": "un", "quantidade": 0, "estoqueMinimo": 3 },
+  { "nome": "Esticador de Drop", "categoria": "Acessórios", "unidade": "un", "quantidade": 150, "estoqueMinimo": 30 },
+  { "nome": "Fita Isolante", "categoria": "Acessórios", "unidade": "rolo", "quantidade": 40, "estoqueMinimo": 10 },
+  { "nome": "Alicate de Crimpar RJ45", "categoria": "Ferramentas", "unidade": "un", "quantidade": 6, "estoqueMinimo": 2 },
+  { "nome": "Clivador de Fibra", "categoria": "Ferramentas", "unidade": "un", "quantidade": 3, "estoqueMinimo": 1 },
+  { "nome": "Power Meter Óptico", "categoria": "Ferramentas", "unidade": "un", "quantidade": 2, "estoqueMinimo": 1 }
+]

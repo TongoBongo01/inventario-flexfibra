@@ -1,17 +1,32 @@
-// Operações com os itens do estoque.
-import { CHAVES, lerLista, salvarLista, gerarId } from './armazenamento';
-import { exigirPerfil } from './authService';
+// Operações com os itens do estoque, guardados na coleção "itens" do Firestore.
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+} from 'firebase/firestore';
+import { db } from './firebaseConfig';
+import { exigirPerfil, traduzirErro } from './authService';
 import { PERFIS, STATUS, CATEGORIAS, UNIDADES } from '../data/constantes';
+
+const itensRef = collection(db, 'itens');
 
 // Qualquer usuário logado pode consultar o estoque
 export async function listarItens() {
-  const itens = await lerLista(CHAVES.itens);
-  return itens.sort((a, b) => a.nome.localeCompare(b.nome));
+  const consulta = await getDocs(itensRef);
+  return consulta.docs
+    .map((documento) => ({ id: documento.id, ...documento.data() }))
+    .sort((a, b) => a.nome.localeCompare(b.nome));
 }
 
 export async function obterItem(id) {
-  const itens = await lerLista(CHAVES.itens);
-  return itens.find((item) => item.id === id) || null;
+  const documento = await getDoc(doc(db, 'itens', id));
+  return documento.exists() ? { id: documento.id, ...documento.data() } : null;
 }
 
 // true quando o item chegou (ou passou) do estoque mínimo
@@ -42,38 +57,43 @@ export async function salvarItem({ id, nome, categoria, unidade, quantidade, est
   await exigirPerfil(PERFIS.ADMIN);
   validarItem({ nome, categoria, unidade, quantidade, estoqueMinimo });
 
-  const itens = await lerLista(CHAVES.itens);
   const nomeLimpo = nome.trim();
-
-  const nomeRepetido = itens.some(
-    (item) => item.nome.toLowerCase() === nomeLimpo.toLowerCase() && item.id !== id
-  );
-  if (nomeRepetido) {
-    throw new Error('Já existe um item com este nome.');
-  }
-
   const dados = { nome: nomeLimpo, categoria, unidade, quantidade, estoqueMinimo };
 
-  if (id) {
-    // Edição: troca apenas o item com o mesmo id
-    const atualizados = itens.map((item) => (item.id === id ? { ...item, ...dados } : item));
-    await salvarLista(CHAVES.itens, atualizados);
-  } else {
-    // Novo item
-    await salvarLista(CHAVES.itens, [...itens, { id: gerarId(), ...dados }]);
+  try {
+    // O Firestore não tem busca sem diferenciar maiúsculas, então comparamos na memória
+    const existentes = await listarItens();
+    const nomeRepetido = existentes.some(
+      (item) => item.nome.toLowerCase() === nomeLimpo.toLowerCase() && item.id !== id
+    );
+    if (nomeRepetido) {
+      throw new Error('Já existe um item com este nome.');
+    }
+
+    if (id) {
+      await updateDoc(doc(db, 'itens', id), dados);
+    } else {
+      await addDoc(itensRef, dados);
+    }
+  } catch (erro) {
+    throw new Error(traduzirErro(erro));
   }
 }
 
 export async function removerItem(id) {
   await exigirPerfil(PERFIS.ADMIN);
 
-  // Não deixamos excluir um item que ainda está esperando aprovação
-  const requisicoes = await lerLista(CHAVES.requisicoes);
-  const temPendente = requisicoes.some((r) => r.itemId === id && r.status === STATUS.PENDENTE);
-  if (temPendente) {
-    throw new Error('Este item tem requisições pendentes. Aprove ou negue antes de excluir.');
-  }
+  try {
+    // Não deixamos excluir um item que ainda está esperando aprovação
+    const pendentes = await getDocs(
+      query(collection(db, 'requisicoes'), where('itemId', '==', id), where('status', '==', STATUS.PENDENTE))
+    );
+    if (!pendentes.empty) {
+      throw new Error('Este item tem requisições pendentes. Aprove ou negue antes de excluir.');
+    }
 
-  const itens = await lerLista(CHAVES.itens);
-  await salvarLista(CHAVES.itens, itens.filter((item) => item.id !== id));
+    await deleteDoc(doc(db, 'itens', id));
+  } catch (erro) {
+    throw new Error(traduzirErro(erro));
+  }
 }
